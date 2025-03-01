@@ -7,9 +7,8 @@ from handlers.weather_handler import weather_command
 from handlers.attractions_handler import attractions_command
 from handlers.profile_handler import profile_handler
 from keyboards.main_keyboard import main_keyboard
-from keyboards.personal_keyboard import personal_keyboard
-import json
-
+from services.db import get_search_history
+from datetime import datetime
 router = Router()
 
 @router.message(lambda message: message.text == "✈ Найти билет")
@@ -30,17 +29,36 @@ async def profile_via_button(message: types.Message, state: FSMContext):
 async def info_via_button(message: types.Message, state: FSMContext):
     await info_handler(message)
 
-@router.message(lambda message: message.text == "📃 История")
-async def history_via_button(message: types.Message):
-    # Читаем историю запросов из файла history.json
-    try:
-        with open("history.json", "r", encoding="utf-8") as f:
-            history = json.load(f)
-        user_history = history.get(str(message.from_user.id), "История пуста.")
-        await message.answer(f"История запросов:\n{user_history}", reply_markup=main_keyboard)
-    except Exception:
-        await message.answer("История пуста.", reply_markup=main_keyboard)
 
+@router.message(lambda message: message.text == "📃 История")
+async def navigation_history_handler(message: types.Message):
+    # Используем идентификатор чата для получения истории
+    history_records = await get_search_history(message.chat.id)
+
+    if not history_records:
+        await message.answer("История поиска пуста.", reply_markup=main_keyboard)
+        return
+
+    response_lines = ["<b>Ваша история поиска:</b>"]
+    for idx, record in enumerate(history_records, start=1):
+        # Ожидается, что record содержит следующие поля:
+        # departure, arrival, departure_date, return_date, search_time
+        departure, arrival, departure_date, return_date, search_time = record
+
+        # Форматируем время запроса, если это объект datetime
+        if isinstance(search_time, datetime):
+            search_time_str = search_time.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            search_time_str = str(search_time)
+
+        line = f"{idx}. ✈ {departure} → {arrival} | {departure_date}"
+        if return_date:
+            line += f" → {return_date}"
+        line += f"\n   📅 Запрос: {search_time_str}"
+        response_lines.append(line)
+
+    response_text = "\n\n".join(response_lines)
+    await message.answer(response_text, parse_mode="HTML", reply_markup=main_keyboard)
 @router.message(lambda message: message.text == "⛅Погода")
 async def weather_button_handler(message: types.Message, state: FSMContext):
     # Сбрасываем состояние, чтобы не было конфликтов

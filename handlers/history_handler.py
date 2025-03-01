@@ -1,54 +1,37 @@
+from datetime import datetime
 from aiogram import Router, types
 from aiogram.filters import Command
 from services.db import get_search_history
-from services.db import store_search_history
+from keyboards.main_keyboard import main_keyboard
 
 router = Router()
 
+
 @router.message(Command("history"))
-@router.callback_query(lambda c: c.data == "history")
-async def history_handler(event: types.Message | types.CallbackQuery):
-    # Получаем id пользователя из события (для сообщений и callback_query оба используют from_user)
-    user_id = event.from_user.id
-    from services.db import get_search_history  # Импорт функции получения истории
-    history = await get_search_history(user_id)
+async def history_handler(message: types.Message):
+    # Используем chat.id, чтобы гарантировать, что сохранялись и извлекаются данные по одному ключу
+    history_records = await get_search_history(message.chat.id)
 
-    if not history:
-        text = "История поиска пуста."
-    else:
-        text = "Ваша история поиска:\n\n"
-        for record in history:
-            departure, arrival, departure_date, return_date, search_time = record
-            return_date_text = f" ➝ {return_date}" if return_date else ""
-            text += f"✈ {departure} ➝ {arrival} ({departure_date}{return_date_text})\n📅 {search_time}\n\n"
+    if not history_records:
+        await message.answer("История поиска пуста.", reply_markup=main_keyboard)
+        return
 
-    if isinstance(event, types.Message):
-        await event.answer(text)
-    else:
-        await event.message.edit_text(text)
+    response_lines = ["<b>Ваша история поиска:</b>"]
+    for idx, record in enumerate(history_records, start=1):
+        # Предполагается, что record содержит: departure, arrival, departure_date, return_date, search_time
+        departure, arrival, departure_date, return_date, search_time = record
 
-# Пример обработчика, где сохраняется история (убедитесь, что здесь используется from_user)
-@router.message(Command("search"))
-async def search_handler(message: types.Message):
-    # Здесь data – пример данных поиска
-    data = {
-        "departure": "Moscow",
-        "arrival": "London",
-        "depart_date": "2025-03-10",
-        "return_date": "2025-03-20"
-    }
-    await store_search_history(message.from_user, data)
-    await message.answer("Запрос сохранён!")
+        # Форматируем время запроса, если это datetime
+        if isinstance(search_time, datetime):
+            search_time_str = search_time.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            search_time_str = str(search_time)
 
-# Если используете inline-кнопку, убедитесь, что в обработчике callback_query используется event.from_user
-@router.callback_query(lambda c: c.data == "search_history")
-async def callback_search_history_handler(callback: types.CallbackQuery):
-    data = {
-        "departure": "Moscow",
-        "arrival": "London",
-        "depart_date": "2025-03-10",
-        "return_date": "2025-03-20"
-    }
-    await store_search_history(callback.from_user, data)
-    await callback.answer("Запрос сохранён!")
+        line = f"{idx}. ✈ {departure} → {arrival} | {departure_date}"
+        if return_date:
+            line += f" → {return_date}"
+        line += f"\n    📅 Запрос: {search_time_str}"
+        response_lines.append(line)
 
+    response_text = "\n\n".join(response_lines)
+    await message.answer(response_text, parse_mode="HTML", reply_markup=main_keyboard)

@@ -183,5 +183,6 @@ async def finalize_search(message: types.Message, state: FSMContext):
         await message.answer(f"Найденные билеты:\n{flight_info}", parse_mode="HTML")
     else:
         await message.answer("⚠ Билеты не найдены. Попробуйте изменить параметры поиска.")
-    await store_search_history(message.from_user.id, data)
+    # Используем идентификатор чата для сохранения истории
+    await store_search_history(message.chat.id, data)
     await state.clear()
