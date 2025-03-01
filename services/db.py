@@ -159,3 +159,16 @@ async def get_search_history(user_id: int):
         except Exception as e:
             logging.error(f"Ошибка при получении истории запросов: {e}")
             return []
+async def clear_search_history(user_id: int):
+    """
+    Удаляет все записи истории запросов для указанного пользователя (или чата).
+    """
+    if pool is None:
+        logging.error("Пул соединений не инициализирован.")
+        return
+    async with pool.acquire() as connection:
+        try:
+            await connection.execute("DELETE FROM search_history WHERE user_id = $1;", user_id)
+            logging.info("История запросов для пользователя %s очищена.", user_id)
+        except Exception as e:
+            logging.error(f"Ошибка при очистке истории запросов для пользователя {user_id}: {e}")

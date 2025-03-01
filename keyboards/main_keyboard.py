@@ -5,7 +5,7 @@ main_keyboard = ReplyKeyboardMarkup(
         [KeyboardButton(text="✈ Найти билет"), KeyboardButton(text="🔥 Горячие предложения")],
         [KeyboardButton(text="👤 Личный кабинет"), KeyboardButton(text="📃 История"), KeyboardButton(text="⚙ Поддержка")],
         [KeyboardButton(text="ℹ Инфо"),KeyboardButton(text="⛅Погода")],
-        [KeyboardButton(text="📍Достопримечательности")]
+        [KeyboardButton(text="📍Места")]
     ],
     resize_keyboard=True,
     one_time_keyboard=False

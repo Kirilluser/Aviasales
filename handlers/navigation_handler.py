@@ -4,7 +4,7 @@ from handlers.flight_search_handler import search_flight_start
 from handlers.hot_deals_handler import hot_deals_handler
 from handlers.info_handler import info_handler
 from handlers.weather_handler import weather_command
-from handlers.attractions_handler import attractions_command
+from handlers.attractions_handler import attractions_command_command
 from handlers.profile_handler import profile_handler
 from keyboards.main_keyboard import main_keyboard
 from services.db import get_search_history
@@ -30,35 +30,7 @@ async def info_via_button(message: types.Message, state: FSMContext):
     await info_handler(message)
 
 
-@router.message(lambda message: message.text == "📃 История")
-async def navigation_history_handler(message: types.Message):
-    # Используем идентификатор чата для получения истории
-    history_records = await get_search_history(message.chat.id)
 
-    if not history_records:
-        await message.answer("История поиска пуста.", reply_markup=main_keyboard)
-        return
-
-    response_lines = ["<b>Ваша история поиска:</b>"]
-    for idx, record in enumerate(history_records, start=1):
-        # Ожидается, что record содержит следующие поля:
-        # departure, arrival, departure_date, return_date, search_time
-        departure, arrival, departure_date, return_date, search_time = record
-
-        # Форматируем время запроса, если это объект datetime
-        if isinstance(search_time, datetime):
-            search_time_str = search_time.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            search_time_str = str(search_time)
-
-        line = f"{idx}. ✈ {departure} → {arrival} | {departure_date}"
-        if return_date:
-            line += f" → {return_date}"
-        line += f"\n   📅 Запрос: {search_time_str}"
-        response_lines.append(line)
-
-    response_text = "\n\n".join(response_lines)
-    await message.answer(response_text, parse_mode="HTML", reply_markup=main_keyboard)
 @router.message(lambda message: message.text == "⛅Погода")
 async def weather_button_handler(message: types.Message, state: FSMContext):
     # Сбрасываем состояние, чтобы не было конфликтов
@@ -67,11 +39,9 @@ async def weather_button_handler(message: types.Message, state: FSMContext):
     # Устанавливаем новое состояние для дальнейшего ввода города
     await state.set_state("weather:waiting_for_city")
 
-@router.message(lambda message: message.text == "📍Достопримечательности")
+@router.message(lambda message: message.text == "📍Места")
 async def attractions_button_handler(message: types.Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Введите название города для получения информации о достопримечательностях:")
-    await state.set_state("attractions:waiting_for_city")
+    await attractions_command_command(message, state)
 
 @router.message(lambda message: message.text == "⚙ Поддержка")
 async def support_via_button(message: types.Message):
