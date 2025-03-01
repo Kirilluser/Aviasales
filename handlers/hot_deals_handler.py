@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StateFilter
 from services.aviasales import get_hot_deals
 from utils.get_city_iata_code import get_city_iata_code
-
+from utils.get_iata_city_name import get_city_name_from_iata
 router = Router()
 
 # Основной обработчик команды /hotdeals
@@ -75,12 +75,24 @@ async def process_date_callback(callback: types.CallbackQuery, state: FSMContext
             depart_date = deal.get("depart_date", "Нет данных")
             origin = deal.get("origin", "??")
             destination = deal.get("destination", "??")
+            try:
+                date_obj = datetime.strptime(depart_date, "%Y-%m-%d")
+                formatted_date = date_obj.strftime("%d%m")  # "2025-09-07" -> "0709"
+            except Exception as e:
+                logging.error(f"Ошибка при форматировании даты: {e}")
+                formatted_date = depart_date.replace('-', '')
+
+            ticket_link = f"https://www.aviasales.com/search/{origin}{formatted_date}{destination}1"
+            # Если API возвращает готовую ссылку, можно использовать её:
+            deep_link = deal.get("link", ticket_link)
+            origin_full = get_city_name_from_iata(origin)
+            destination_full = get_city_name_from_iata(destination)
             response += (
                 f"✈ <b>Оператор:</b> {operator}\n"
-                f"📍 <b>Маршрут:</b> {origin} → {destination}\n"
+                f"📍 <b>Маршрут:</b> {origin} ({origin_full}) → {destination}({destination_full})\n"
                 f"📅 <b>Дата вылета:</b> {depart_date}\n"
                 f"💰 <b>Цена:</b> {price} USD\n"
-                f"🔗 <a href='https://www.aviasales.com/search/{origin}{destination}{depart_date.replace('-', '')}'>Перейти к покупке</a>\n"
+                f"🔗 <a href='{deep_link}'>Перейти к покупке</a>\n"
                 f"━━━━━━━━━━━━━━━━━━━\n"
             )
         await callback.message.answer(response, parse_mode="HTML")
@@ -131,17 +143,30 @@ async def process_hot_deals_city_number(callback: types.CallbackQuery, state: FS
         selected_deals = sorted_deals[:count]
         response = f"🔥 <b>Горячие предложения для {city_code}:</b>\n\n"
         for deal in selected_deals:
+            # Используем gate как оператора, value как цену
             operator = deal.get("gate", "Неизвестно").upper()
             price = deal.get("value", "Нет данных")
             depart_date = deal.get("depart_date", "Нет данных")
-            origin = deal.get("origin", city_code)
+            origin = deal.get("origin", "??")
             destination = deal.get("destination", "??")
+            try:
+                date_obj = datetime.strptime(depart_date, "%Y-%m-%d")
+                formatted_date = date_obj.strftime("%d%m")  # "2025-09-07" -> "0709"
+            except Exception as e:
+                logging.error(f"Ошибка при форматировании даты: {e}")
+                formatted_date = depart_date.replace('-', '')
+
+            ticket_link = f"https://www.aviasales.com/search/{origin}{formatted_date}{destination}1"
+            # Если API возвращает готовую ссылку, можно использовать её:
+            deep_link = deal.get("link", ticket_link)
+            origin_full = get_city_name_from_iata(origin)
+            destination_full = get_city_name_from_iata(destination)
             response += (
                 f"✈ <b>Оператор:</b> {operator}\n"
-                f"📍 <b>Маршрут:</b> {origin} → {destination}\n"
+                f"📍 <b>Маршрут:</b> {origin}({origin_full}) → {destination}({destination_full})\n"
                 f"📅 <b>Дата вылета:</b> {depart_date}\n"
                 f"💰 <b>Цена:</b> {price} USD\n"
-                f"🔗 <a href='https://www.aviasales.com/search/{origin}{destination}{depart_date.replace('-', '')}'>Перейти к покупке</a>\n"
+                f"🔗 <a href='{deep_link}'>Перейти к покупке</a>\n"
                 f"━━━━━━━━━━━━━━━━━━━\n"
             )
         await callback.message.answer(response, parse_mode="HTML")

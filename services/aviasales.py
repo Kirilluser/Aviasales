@@ -1,7 +1,7 @@
 import aiohttp
 import logging
 from config import AVIASALES_API_KEY
-
+from datetime import datetime
 SEARCH_FLIGHTS_URL = "https://api.travelpayouts.com/aviasales/v3/prices_for_dates"
 HOT_DEALS_URL = "https://api.travelpayouts.com/aviasales/v3/get_special_offers"
 
@@ -35,12 +35,17 @@ async def search_flights(origin: str, destination: str, departure_at: str, retur
                         airline = ticket.get('airline', 'Неизвестно').upper()
                         price = ticket.get('price', 'Нет данных')
                         departure_time = ticket.get('departure_at', 'Нет данных')[:10]
+                        try:
+                            departure_date_obj = datetime.strptime(departure_time, "%Y-%m-%d")
+                            formatted_date = departure_date_obj.strftime("%d%m")
+                        except ValueError:
+                            formatted_date = "0000"
                         result += (
                             f"✈ <b>Авиакомпания:</b> {airline}\n"
                             f"📍 <b>Маршрут:</b> {origin} → {destination}\n"
                             f"📅 <b>Дата вылета:</b> {departure_time}\n"
                             f"💰 <b>Цена:</b> {price} USD\n"
-                            f"🔗 <a href='https://www.aviasales.com/search/{origin}{destination}{departure_time.replace('-', '')}'>Перейти к покупке</a>\n"
+                            f"🔗 <a href='https://www.aviasales.com/search/{origin}{formatted_date}{destination}1'>Перейти к покупке</a>\n"
                             f"━━━━━━━━━━━━━━━━━━━\n"
                         )
                         count += 1
